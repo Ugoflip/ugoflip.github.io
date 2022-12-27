@@ -25,12 +25,15 @@ const autoCompleteJS = new autoComplete({
             response && response.ok ? await response.text() : null;
           if (finalizeTXFileData) {
           }
-          temp.push({
-            id: splittedText[0],
-            startDate: splittedText[1] || "",
-            endDate: splittedText[2] || "",
-            name: splittedText.slice(3).join("--") || "",
-          });
+          if(splittedText[1]!='undefined' && !gameId.includes(splittedText[0])){
+            gameId.push(splittedText[0]);
+            temp.push({
+              id: splittedText[0],
+              startDate: splittedText[1] || "",
+              endDate: splittedText[2] || "",
+              name: splittedText.slice(3).join("--") || "",
+            });
+          }
         }
         console.log("temp", temp);
         for (let i = temp.length - 1; i >= 0; i--) {
