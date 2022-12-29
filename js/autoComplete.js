@@ -15,7 +15,8 @@ const autoCompleteJS = new autoComplete({
           response.text()
         );
         const raffleList = source.split(/\n/).filter(Boolean);
-        const temp = [];
+        const temp = []; 
+        const gameId=[];
         for (const raffle of raffleList) {
           const splittedText = raffle.split("--");
           const response = await fetch(
