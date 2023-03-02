@@ -13,5 +13,5 @@ function progress(){
         if (parseInt($bar.style.width.replace("%","").replace("px","")) / 5 == 100){
           $bar.innerHTML=("Still working ... " + parseInt($bar.style.width.replace("%","").replace("px","")) / 5 + "%");
         }
-    }, 800)
+    }, 1200)
 } 
