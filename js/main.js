@@ -6,35 +6,41 @@ async function handleValidate(raffleId) {
     "0250234c855965c3de27d1a7f1917ed89f6f05301b690e2f5bfed8c4a303339a84"
   );
 
-  const initializeTxFileData = await readFile(`${raffleId}/initTx.txt`);
-  const initializeTxId = initializeTxFileData.split(/\n/)[0];
-  const finalizeTXFileData = await readFile(`${raffleId}/finalizeTx.txt`);
-  if (!finalizeTXFileData) {
-    errorMessage("Game result have not been announced yet.", "info");
+  try {
+    const initializeTxFileData = await readFile(`${raffleId}/initTx.txt`);
+    const initializeTxId = initializeTxFileData.split(/\n/)[0];
+    const finalizeTXFileData = await readFile(`${raffleId}/finalizeTx.txt`);
+    if (!finalizeTXFileData) {
+      errorMessage("Game result have not been announced yet.", "info");
+      removeLoading();
+      return;
+    }
+    const finalizeTXId = finalizeTXFileData.split(/\n/)[0];
+    if (initializeTxId) {
+      const initializationTx = await readTxBufferFromS3File(
+        `${initializeTxId}.btx`
+      );
+      const finalizationTx = await readTxBufferFromS3File(`${finalizeTXId}.btx`);
+      let ticketIds = await readFile(`${raffleId}/ticketIds.txt`);
+      ticketIds = ticketIds.split(/\n/).filter(Boolean);
+
+      await selectWinners(
+        initializationTx,
+        finalizationTx,
+        async (count) => {
+          if (count < ticketIds.length) {
+            const nextRecord = await readTxBufferFromS3File(
+              `${ticketIds[count]}.btx`
+            );
+            return nextRecord;
+          }
+        },
+        pubKey
+      )
+    }
+  } catch (error) {
+    errorMessage("Unexpected Error occurred: " + error.message);
     removeLoading();
-    return;
-  }
-  const finalizeTXId = finalizeTXFileData.split(/\n/)[0];
-  if (initializeTxId) {
-    const initializationTx = await readTxBufferFromS3File(
-      `${initializeTxId}.btx`
-    );
-    const finalizationTx = await readTxBufferFromS3File(`${finalizeTXId}.btx`);
-    let ticketIds = await readFile(`${raffleId}/ticketIds.txt`);
-    ticketIds = ticketIds.split(/\n/).filter(Boolean);
-    selectWinners(
-      initializationTx,
-      finalizationTx,
-      async (count) => {
-        if (count < ticketIds.length) {
-          const nextRecord = await readTxBufferFromS3File(
-            `${ticketIds[count]}.btx`
-          );
-          return nextRecord;
-        }
-      },
-      pubKey
-    );
   }
 }
 
@@ -91,6 +97,7 @@ function removeLoading() {
   document.getElementById("autoComplete").value = "";
 }
 function errorMessage(message, icon = "error") {
+  console.error("Error: " + message)
   swal({
     icon: icon,
     // title: "Oops...",
