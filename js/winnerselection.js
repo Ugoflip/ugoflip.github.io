@@ -25,7 +25,7 @@ async function selectWinners(
     for (let i = 0; i < ticketIds.length; i++) {
       if (ticketIds[i] === ticketId) {
         errorMessage(
-          `Detected that Ticket Sale transaction with Ticket ID ${ticketId} is being processed more than once.`
+          `Failed to select winners. Detected that Ticket Sale transaction with Ticket ID ${ticketId} is being processed more than once.`
         );
         removeLoading();
         return;
@@ -41,7 +41,7 @@ async function selectWinners(
   }
 
   if (ticketIds.length !== finalizationObject.soldTicketCount) {
-    errorMessage("Ticket count does not match with expected count.");
+    errorMessage("Failed to select winners. Ticket count does not match with expected count.");
     removeLoading();
     return;
   }
@@ -78,23 +78,27 @@ function validateInitTransaction(transactionData, pubKey) {
     messageParts: [messageBuf],
   } = parseTransaction(transactionData, 1);
   if (messageType !== 0) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction has unexpected message type.");
     removeLoading();
     return;
   }
   if (!validateSignature(pubKey, signature, [messageBuf])) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Failed to validate signature of initialization transaction.");
     removeLoading();
     return;
   }
   initObject = JSON.parse(messageBuf.toString());
   if (initObject.noOfTickets < 2) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction specifies less than 2 tickets.");
     removeLoading();
     return;
   }
   if (!initObject.rewards.length) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction specifies no rewards.");
     removeLoading();
     return;
   }
@@ -109,25 +113,29 @@ function validateInitTransaction(transactionData, pubKey) {
         item.rank > 0
     )
   ) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction has one or more invalid reward definitions.");
     removeLoading();
     return;
   }
 
   if (!initObject.initialSeed) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction lacks an initial seed value.");
     removeLoading();
     return;
   }
   const regexExp = /^[a-f0-9]{64}$/gi;
   if (!regexExp.test(initObject.initialSeed)) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction lacks has an invalid initial seed value.");
     removeLoading();
     return;
   }
 
   if (!initObject.additionalSeeds?.length) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction lacks additional seed values.");
     removeLoading();
     return;
   }
@@ -138,7 +146,8 @@ function validateInitTransaction(transactionData, pubKey) {
         additionalSeed.description && additionalSeed.regexPattern
     )
   ) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Initialization transaction has one or more invalid additional seed values.");
     removeLoading();
     return;
   }
@@ -157,31 +166,39 @@ function validateEndTransaction(
     messageParts: [messageBuf],
   } = parseTransaction(transactionData, 1);
   if (messageType !== 2) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Finalization transaction has unexpected message type.");
     removeLoading();
   }
   if (!validateSignature(pubKey, signature, [messageBuf])) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Failed to validate signature of finalization transaction.");
+    removeLoading();
+    return;
   }
   endObject = JSON.parse(messageBuf.toString());
   const initTxid = Buffer.from(endObject.initializationTxid, "hex");
   if (!initTxid.equals(realInitTxid)) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { endObject, initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Finalization transaction points to a different initialization transaction.");
     removeLoading();
     return;
   }
   if (!endObject.lastTicketSoldTimestamp) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { endObject, initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Finalization transaction lacks timestamp of last ticket sale");
     removeLoading();
     return;
   }
   if (!endObject.additionalSeeds.length || !endObject.additionalSeeds[0]) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { endObject, initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Finalization transaction does not contain additional seed values.");
     removeLoading();
     return;
   }
   if (endObject.additionalSeeds.length !== initObject.additionalSeeds.length) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { endObject, initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+    errorMessage("Failed to select winners. Finalization transaction contains an incorrect number of additional seed values.");
     removeLoading();
     return;
   }
@@ -190,7 +207,8 @@ function validateEndTransaction(
     const seed = endObject.additionalSeeds[i];
     const regex = initObject.additionalSeeds[i].regexPattern;
     if (!stringToRegex(regex).test(seed)) {
-      errorMessage("Failed to select winner due to mis matched data");
+      console.warn("Error Context:", { endObject, initObject, realInitTxid, messageType, signature, messageBuf, pubKey });
+      errorMessage("Failed to select winners. Finalization transaction has one or more additional seed values which do not match the corresponding pattern.");
       removeLoading();
       return;
     }
@@ -205,20 +223,23 @@ function validateTicketSaleTransaction(realInitTxid, transactionData, pubKey) {
     messageParts: [initTxidBuf, ticketIdBuf],
   } = parseTransaction(transactionData, 2);
   if (messageType !== 1) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { realInitTxid, messageType, signature, initTxidBuf, ticketIdBuf, pubKey });
+    errorMessage("Failed to select winners. Ticket sale transaction has unexpected message type.");
     removeLoading();
 
     return;
   }
   if (!validateSignature(pubKey, signature, [initTxidBuf, ticketIdBuf])) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { realInitTxid, messageType, signature, initTxidBuf, ticketIdBuf, pubKey });
+    errorMessage("Failed to select winners. Failed to validate signature of ticket sale transaction.");
     removeLoading();
     return;
   }
   const ticketId = bsv.Base58.fromBuffer(ticketIdBuf).toString();
   //TODO: need to remove raffle id check once seed update issue will resolve
   if (!initTxidBuf.equals(realInitTxid)) {
-    errorMessage("Failed to select winner due to mis matched data");
+    console.warn("Error Context:", { ticketId, realInitTxid, messageType, signature, initTxidBuf, ticketIdBuf, pubKey });
+    errorMessage("Failed to select winners. Ticket sale transaction points to a different initialization transaction.");
     removeLoading();
     return;
   }
