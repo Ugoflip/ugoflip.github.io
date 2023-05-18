@@ -12,7 +12,7 @@ async function selectWinners(
     finalizationTransaction,
     pubKey
   );
-  const ticketIds = [];
+  let ticketIds = [];
   let count = 0;
   let nextTicketTx = await loadNextTicketSaleTransaction(count);
   while (nextTicketTx) {
@@ -45,6 +45,10 @@ async function selectWinners(
     removeLoading();
     return;
   }
+
+   // sort ticketIds alphabetically
+   ticketIds = ticketIds.sort();
+  
   const rng = new RNG(
     initObject.initialSeed,
     ...finalizationObject.additionalSeeds
